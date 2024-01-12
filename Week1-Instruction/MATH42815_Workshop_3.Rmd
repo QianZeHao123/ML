@@ -262,7 +262,8 @@ to best split the dataset in chunks. Move to the next section and come
 back to this Exercise later as practice.
 
 ```{R}
-
+k = 5
+repeat = 20
 ```
 
 ### Using the Caret package for cross-validation

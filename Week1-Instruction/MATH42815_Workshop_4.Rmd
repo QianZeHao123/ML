@@ -1,0 +1,297 @@
+#### MATH42815 - Machine Learning - 2023/24
+
+## Machine Learning - Workshop 4
+
+**Aim**: In this workshop we will explore a method for handling estimation of regression coefficients for cases where the predictors are highly correlated and other potentially ill-posed problems.
+
+### **Introduction**
+
+Ridge regression is a method of estimating the coefficients of multiple-regression models in scenarios where the independent variables are highly correlated.
+
+It potentially corrects for overfitting on training data by adding a penalty term to the ordinary least squares objective function. This penalty term shrinks the coefficients of the model towards zero, reducing their variance and improving their stability. This is also known as $L2$ regularization.
+
+As we saw in Workshop 1, we can estimate regression coefficients using the least squares method which gives us:
+
+$$\hat{\beta}_{LOS} = (X^TX)^{-1}X^Ty$$
+
+where $y$ is the response vector and $X$ the design matrix.
+
+The ridge regression coefficient estimates are given by:
+
+$$\hat{\beta}_{ridge} = (X^TX + \lambda I)^{-1}X^Ty$$
+
+where $\lambda\geq 0$ is the ridge parameter, and $I$ is the identity matrix.
+
+The ridge parameter $\lambda$ controls the amount of shrinkage applied to the coefficients.
+
+When $\lambda = 0$, the penalty term has no effect and ridge regression produces the same coefficient estimates as ordinary least squares. However, as $\lambda$ increases, the penalty term becomes more influential and the ridge regression coefficient estimates approach zero.
+
+The optimal value of $\lambda$ depends on the data and the model. It can be chosen by cross-validation or other methods that minimize the prediction error.
+
+**Ridge regression with GLMnet**
+
+There are a number of ways of fitting a ridge regression with R. Here we will use the *GLMnet* and *caret* packages (see Workshop 3 for a short introduction to *caret*).
+
+For this workshop, we will use the *mtcars* dataset. If you really miss the *Boston* dataset, you can retry this workshop later on.
+
+The *mtcars* dataset is a buil-in dataset in R. It contains information on fuel comsumption and 10 other related variables for 32 automobiles (1973-74 models) as presented by the 1974 Motor Trend US magazine.
+
+Let's load the data and create a pairs plot of the data. To create the pairs plot, we will use the method you saw in Intro to Stats and recreate it using *ggplot* and **GGAlly**. The default **ggpairs** function gives us a similar output to **pairs** on the lower triangle of the matrix of plots and calculated correlations for each pair of variables in the upper triangle.
+
+```{r}
+# ---------------------------------------------------------------------
+# clear the environment var area
+rm(list = ls())
+# clear all plots
+graphics.off()
+# clear the console area
+cat("\014")
+# ---------------------------------------------------------------------
+```
+
+```{r}
+data(mtcars)
+pairs(mtcars,main = "Mtcars data", col='blue')
+```
+
+```{r}
+library("ggplot2")
+library("GGally")
+ggpairs(mtcars)+theme_bw()
+
+# theme_bw is one of many themes you can modify from ggplot
+# see https://ggplot2.tidyverse.org/reference/ggtheme.html for other themes
+```
+
+We see that some of the variables in this dataset are highly correlated such as *mpg* (miles per gallon), *drat* (rear axle ratio), and *wt* (weight in tons).
+
+Say we want to model *hp* (horsepower) using the predictors *mpg*, *drat* and *wt*. If we are using least squares, we use the **lm** function:
+
+```{r}
+ols_model = lm(hp ~ mpg + drat + wt, data=mtcars)
+summary(ols_model)
+```
+
+To do the same using the **glmnet** package and function, we set *lambda* and *alpha* to zero. The *lambda* parameter is the parameter we introduced as a the ridge penalty. The *alpha* parameter is the mixing parameter for elastic nets which we will see at a later date.
+
+```{R}
+library(glmnet)
+ridge0=glmnet(mtcars[,c("mpg","drat","wt")],mtcars$hp,
+              alpha=0,
+              lambda=0)
+```
+
+```{R}
+coef(ridge0)
+```
+
+The coefficients we estimated using the **glmnet** function are almost the same as the ones produced using **lm** but not quite. That's because the **glmnet** function is using maximum likelihood to estimate the model while **lm** is using QR decomposition which is much faster and more appropriate than the optimization algorithm used by **glmnet**.
+
+Now say we want to test different values of *lambda*. We first create a vector of lambdas and pass it to the **glmnet** call:
+
+```{R}
+lambdas = seq(0,10,by=0.5)
+length(lambdas)
+lambdas
+```
+
+```{R}
+ridge1=glmnet(mtcars[,c("mpg","drat","wt")],mtcars$hp,
+              alpha=0,
+              lambda=lambdas)
+print(ridge1)
+```
+
+We have fitted 21 models with different *lambda* values as defined by the *lambdas* vector. The printed output above shows the number of non-zero coefficients in each model (*Df*), the deviance explained (*dev*), and the values of $\lambda$ (*lambda*).
+
+To see the coefficients of a model for a specific $\lambda$, we call:
+
+```{R}
+coef(ridge1,s = 0)
+```
+
+It looks like we have yet another set of coefficients for $lambda=0$. Let's try changing the *thresh*, the convergence threshold for the coordinate descent (similar to the gradient descent you saw in Workshop 2!). The default value for this parameter is 1e-7, we will change it to 1e-10:
+
+```{R}
+ridge1=glmnet(mtcars[,c("mpg","drat","wt")],mtcars$hp,
+              alpha=0,
+              lambda=lambdas,
+              thresh=1e-10)
+
+coef(ridge1,s = 0)
+```
+
+And now we have values very close to the ones provided by **lm**.
+
+**Exercise:** Test different values of *thresh* and *lambda*.
+
+```{R}
+lambda_new = seq(0,20,by=0.1)
+ridge_test=glmnet(mtcars[,c("mpg","drat","wt")],mtcars$hp,
+              alpha=0,
+              lambda=lambda_new,
+              thresh=1e-10)
+
+# coef(ridge_test, s = 60)
+```
+
+We now change the vector *lambdas* to cover a wider range varying from $10^{-3}$ to $10^3$. We use the **cv.glmnet** function to try to find the "best" value of $\lambda$; The **cv.glmnet** function as set below performs 10-fold cross-validation to each model it finds.
+
+When we plot the output of the function, we can see the cross-validated MSE (red) and the range of calculated MSEs for each fold. The *lambda* value that returns the lowest MSE is the best value for $\lambda$ from the set provided.
+
+```{R}
+lambdas=10^seq(-3,3,by=0.1)
+cv_fit = cv.glmnet(as.matrix(mtcars[,c("mpg","drat","wt")]),
+              as.matrix(mtcars$hp),
+              alpha=0,
+              lambda=lambdas)
+
+plot(cv_fit)
+```
+
+To return the best $\lambda$ and the coefficients of the best model, we do:
+
+```{R}
+cv_fit$lambda.min
+```
+
+**Question:** Rerun the model fit (last two blocks) multiple times. Is the value of *lambda.min* always the same? What do you think is going on? Discuss this with your colleagues and/or tutor.
+
+```{R}
+coef(cv_fit, s="lambda.min")
+```
+
+```{R}
+predict_best_cv = predict(cv_fit, s="lambda.min",newx=as.matrix(mtcars[,c("mpg","drat","wt")]))
+RMSE_best_cv = sqrt(mean((predict_best_cv-mtcars$hp)^2))
+print(RMSE_best_cv)
+```
+
+**Question:** Why is the variability of the calculated MSEs for each $\lambda$ as plotted above as large as they are? What could be done to reduce the MSE?
+
+**Exercise:** Change the fold size used for cross-validation. Has the optimal value of $\lambda$ changed?
+
+```{R}
+lambdas=10^seq(-3,3,by=0.1)
+cv_fit = cv.glmnet(as.matrix(mtcars[,c("mpg","drat","wt")]),
+              as.matrix(mtcars$hp),
+              alpha=0,
+              lambda=lambdas,
+              nfolds=20)
+
+plot(cv_fit)
+cv_fit$lambda.min
+coef(cv_fit, s="lambda.min")
+predict_best_cv = predict(cv_fit, s="lambda.min",newx=as.matrix(mtcars[,c("mpg","drat","wt")]))
+RMSE_best_cv = sqrt(mean((predict_best_cv-mtcars$hp)^2))
+print(RMSE_best_cv)
+```
+
+**Exercise:** Can you find a "better" value of $\lambda$ using the procedure above?
+
+```{R}
+cv_fit$lambda.min
+```
+
+### GLMnet and CAReT
+
+Now let's repeat the same process using CAReT. The syntax we use is similar to what we used in Workshop 3.
+
+Instead of setting our method to "lm", we set it to "glmnet". We can also choose the metric we want to use for optimization, we will set it to "RMSE". Try changing it later on.
+
+We also introduce the *tuneGrid* parameter to set the values of *alpha* and *lambda* we want to explore in the *glmnet* function.
+
+As a test, we first run our the caret train for *alpha=0* and *lambda=0*, and return the coefficients for the "best" model:
+
+```{R}
+library(caret)
+ctrl_kfold0 = trainControl(method = "cv", number = 10)
+ridge_kfold0 = train(hp ~ mpg+drat+wt,
+              data = mtcars,
+              method = "glmnet",
+              metric = "RMSE",
+              thresh=1e-10,
+              tuneGrid = expand.grid(alpha = 0, lambda = 0),
+              trControl = ctrl_kfold0)
+coef(ridge_kfold0$finalModel, ridge_kfold0$bestTune$lambda)
+```
+
+We use the same vector of *lambdas* as we had tried with **cv.glmnet** in the previous section:
+
+```{R}
+lambdas=10^seq(-3,3,by=0.1)
+ctrl_kfold = trainControl(method = "cv", number = 10)
+ridge_kfold = train(hp ~ mpg+drat+wt,
+              data = mtcars,
+              method = "glmnet",
+              metric = "RMSE",
+              tuneGrid = expand.grid(alpha = 0,
+                                     lambda = lambdas),
+              trControl = ctrl_kfold,
+              thresh=1e-10)
+```
+
+```{R}
+coef(ridge_kfold$finalModel, ridge_kfold$bestTune$lambda)
+```
+
+```{R}
+print(ridge_kfold$finalModel$lambdaOpt)
+```
+
+```{R}
+prediction_ridge = predict(ridge_kfold,mtcars[,c("mpg","drat","wt")])
+```
+
+```{R}
+RMSE(prediction_ridge,mtcars$hp)
+```
+
+Like with **cv.glmnet**, if you rerun the process above multiple times, you will get different values for the "best" $\lambda$. In future sessions, we will start to set the seed that is used for randomization.
+
+If you got to this point with some time to spare, go back to the beginning and use **set.seed** to set a seed for this notebook. How much variability do you still see across approaches?
+
+```{r warning=FALSE}
+set.seed(111)
+
+# lm method
+print('------------------lm method------------------')
+lm_model = lm(hp ~ mpg + drat + wt, data=mtcars)
+coef(lm_model)
+
+# glmnet
+set.seed(111)
+print('------------------GLMnet method------------------')
+lambdas=10^seq(-3,3,by=0.1)
+cv_fit = cv.glmnet(as.matrix(mtcars[,c("mpg","drat","wt")]),
+              as.matrix(mtcars$hp),
+              alpha=0,
+              lambda=lambdas,
+              nfolds=10,
+              thresh=1e-10)
+
+cv_fit$lambda.min
+coef(cv_fit, s="lambda.min")
+predict_best_cv = predict(cv_fit, s="lambda.min",newx=as.matrix(mtcars[,c("mpg","drat","wt")]))
+RMSE_best_cv = sqrt(mean((predict_best_cv-mtcars$hp)^2))
+print(RMSE_best_cv)
+
+# CARet method
+set.seed(111)
+print('------------------CARet method------------------')
+# lambdas=10^seq(-3,3,by=0.1)
+ctrl_kfold = trainControl(method = "cv", number = 10)
+ridge_kfold = train(hp ~ mpg+drat+wt,
+              data = mtcars,
+              method = "glmnet",
+              metric = "RMSE",
+              tuneGrid = expand.grid(alpha = 0,
+                                     lambda = lambdas),
+              trControl = ctrl_kfold,
+              nfolds=10,
+              thresh=1e-10)
+print(ridge_kfold$finalModel$lambdaOpt)
+coef(ridge_kfold$finalModel, ridge_kfold$bestTune$lambda)
+prediction_ridge = predict(ridge_kfold,mtcars[,c("mpg","drat","wt")])
+RMSE(prediction_ridge,mtcars$hp)
+```

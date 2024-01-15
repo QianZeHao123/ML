@@ -2,7 +2,6 @@
 
 ## Machine Learning - Workshop 3
 
-
 **Aim**: In this workshop we will go through a few resampling techniques with a focus on model validation and cross-validation.
 
 Resampling techqniques involved drawing samples multiple times from a training dataset. These processes can be used to validate models, assess their robustness, and learn from small samples.
@@ -25,18 +24,15 @@ The **Boston** dataset has 506 observations so it is big enough to demonstrate t
 
 First we are going to load the data then split it into two sets.
 
-
-```R
+``` r
 library(MASS)
 data(Boston)
 dim(Boston)
 ```
 
-We use the *sample* function to take a sample of size 150 from our dataset, and we use the same indexing strategy we used in the previous workshops to split the data.
-Note that for the testing dataset we use the minus sign in front of our index vector. That means we want to select the complementary set of observations to the one we have chosen for the training set.
+We use the *sample* function to take a sample of size 150 from our dataset, and we use the same indexing strategy we used in the previous workshops to split the data. Note that for the testing dataset we use the minus sign in front of our index vector. That means we want to select the complementary set of observations to the one we have chosen for the training set.
 
-
-```R
+``` r
 training_size = 150
 ind = sample(1:nrow(Boston), size = training_size)
 training = Boston[ind,]
@@ -45,16 +41,14 @@ testing = Boston[-ind,]
 
 Let's start with a simple linear regression model setting *medv* as our response variable and the following variables as predictors: *rm*, *lstat*, *indus*, *ptratio*.
 
-
-```R
+``` r
 model_1 = lm(medv ~ rm+lstat+indus+ptratio, data = training)
 summary(model_1)
 ```
 
 We then use the predict function on our testing dataset and calculate the mean squared error of our predictions.
 
-
-```R
+``` r
 pred = predict(model_1, newdata = testing)
 summary(pred)
 mean((testing$medv - pred)^2)
@@ -62,16 +56,14 @@ mean((testing$medv - pred)^2)
 
 We plot the real values of *medv* from the testing set against the output of *predict*. We add a red diagonal line to the plot to see how far the predicted values are from the real values in the testing dataset.
 
-
-```R
+``` r
 plot(testing$medv, pred, pch = 4)
 abline(c(0,1), col = "red", lwd = 2)
 ```
 
 Let's repeat this process a few times to get an idea of how much the MSE changes.
 
-
-```R
+``` r
 t_size = 150
 reps = 1000
 mse_vec = rep(NA, 100)
@@ -87,9 +79,7 @@ for (i in 1:reps){
 
 **Exercise:** Comment each line of the code above and explain what you expect to see in *mse_vec*. Draw a histogram and a boxplot of *mse_vec*.
 
-
-```R
-
+``` r
 ```
 
 ### **Leave-one-out cross-validation**
@@ -104,44 +94,33 @@ Let's try this approach with the **Boston** dataset.
 
 **Exercise:** Modify the loop you have commented in the previous section to calculate the LOOCV for
 
-*medv ~ rm+lstat+indus+ptratio*.
+*medv \~ rm+lstat+indus+ptratio*.
 
-You need to:
-- loop through all possible observations in the Boston dataset,
-- for each $i$-th observation, remove this observation from the training set and create a testing set that only contains this observation. Fit the relevant model;
-- calculate the MSE for each of these models;
-- return the average of all MSEs.
+You need to: - loop through all possible observations in the Boston dataset, - for each $i$-th observation, remove this observation from the training set and create a testing set that only contains this observation. Fit the relevant model; - calculate the MSE for each of these models; - return the average of all MSEs.
 
-
-
-```R
-
+``` r
 ```
 
 So why are we doing this? As in the previous workshop, we are interested in evaluating the performance of our model.
 
 **Question:** Try changing the set of predictors in your model and compute the LOOCV. Can you find a model with a lower LOOCV than the one above? Talk to your colleagues and/or a tutor about your findings.
 
-
-```R
-
+``` r
 ```
 
 ### K-fold cross-validation
-
 
 The $k$-fold cross-validation approach is an extension of the validation method we have seen in the first section and produces more robust estimates for the **test** error. The Leave-one-out method is a special case of the $k$-fold method.
 
 The idea is that, instead of taking only one observation out at a time, we take a larger set of observations out as described below.
 
-- We randomly divide our dataset into $K$ equal-sized chunks.
-- We leave out part $k$ (validation set) and fit the model to the remaining samples in the other $k-1$ parts combined (training set).
-- We then compute predictions for the observations in part $k$ we left out.
+-   We randomly divide our dataset into $K$ equal-sized chunks.
+-   We leave out part $k$ (validation set) and fit the model to the remaining samples in the other $k-1$ parts combined (training set).
+-   We then compute predictions for the observations in part $k$ we left out.
 
 The process is repeated for each chunk $c=1,\ldots,K$ and we combine our results to produce an estimate for the test error.
 
 Let's call the $K$ chunks $C_1, C_2, \ldots, C_K$, where $C_k$ contains the indices of the $n_k$ observations in chunk $k$.
-
 
 Ideally our dataset contains $n$ observations such that $n$ is a multiple of $K$ and $n_k=n/K$ (if that's not the case, we distribute samples as evenly as possible).
 
@@ -155,24 +134,19 @@ where $MSE_k$ is the mean squared error for the model fitted to the data with ch
 
 **Example:** Say our dataset had 200 observations. That means $n=200$. We can divide those 200 observations in $K=10$ chunks. $C_1$ will contain 20 observations, $C_2$ will contain another set of 20 observations, all the way up to $C_{10}$ that will contain the final 20 observations.
 
-
-- Take $C_1$ as our testing dataset and use $C_2$ to $C_10$ as our training dataset,
-- Fit the model using the training data and validate it using the testing data,
-- Calculate the MSE and save the value,
-- Repeat the steps above for $C_2, \ldots, C_{10}$,
-- Compute CV.
-
+-   Take $C_1$ as our testing dataset and use $C_2$ to $C_10$ as our training dataset,
+-   Fit the model using the training data and validate it using the testing data,
+-   Calculate the MSE and save the value,
+-   Repeat the steps above for $C_2, \ldots, C_{10}$,
+-   Compute CV.
 
 When $K=n$, we have a special case called the $n$-fold or the **leave-one out cross-validation** (LOOCV).
-
 
 *Note:* The LOOCV is often useful (and simple to implement), but the estimates of each fold are highly correlated and their average will likely have high variance. It's best used for small datasets and, when possible, $K=5$ or $K=10$ are better choices.
 
 **Exercise?** If you want to practice programming in R, you can try to implement the $k$-fold cross-validation process. It would just be an extension of the previous algorithms but you'll have to think about how to best split the dataset in chunks. Move to the next section and come back to this Exercise later as practice.
 
-
-```R
-
+``` r
 ```
 
 ### Using the Caret package for cross-validation
@@ -183,52 +157,42 @@ The **caret** package is a well-known package used for **C**lassification **A**n
 
 Let's implement the LOOCV (leave-one-out cross-validation) method using caret. We start by loading the library and using the **trainControl** function to set the method we want to use for cross-validation.
 
-
-```R
+``` r
 library(caret)
 ```
 
-
-```R
+``` r
 ctrl = trainControl(method = "LOOCV")
 ```
 
 We will use the **Boston** dataset (again!) and the model
 
-*medv ~ rm+lstat+indus+ptratio*.
+*medv \~ rm+lstat+indus+ptratio*.
 
 The function **train** takes as input the model we want to fit, the dataset we want to use, the method we want to use to fit this model (e.g. linear model), and the chosen validation method as follows:
 
-
-
-```R
+``` r
 model = train(medv ~ rm+lstat+indus+ptratio,
               data = Boston,
               method = "lm",
               trControl = ctrl)
 ```
 
-
-```R
+``` r
 print(model)
 ```
 
 And the square of the RMSE above equals
 
-
-```R
+``` r
 print((model$results$RMSE)^2)
 ```
 
 **Question:** Does the value you see above match what you calculated in previous sections?
 
-To setup **caret** for $k$-fold cross-validation, we need to change our call to the **trainControl** function.
-We will set
-- the method to **cv** (cv stands for cross-validation), and
-- the number to the $k$ we want to use, say 10 for a 10-fold CV.
+To setup **caret** for $k$-fold cross-validation, we need to change our call to the **trainControl** function. We will set - the method to **cv** (cv stands for cross-validation), and - the number to the $k$ we want to use, say 10 for a 10-fold CV.
 
-
-```R
+``` r
 ctrl_kfold = trainControl(method = "cv", number = 10)
 model_kfold = train(medv ~ rm+lstat+indus+ptratio,
               data = Boston,
@@ -239,7 +203,5 @@ print(model_kfold)
 
 **Question:** Why are the sample sizes in the summary above different?
 
-
-```R
-
+``` r
 ```

@@ -73,30 +73,30 @@ cat("\014")
 current_directory = getwd()
 ```
 
-```{R}
+```{r}
 # read_csv
 # joint file path
 file_path = file.path(current_directory, "auto-mpg.csv")
 autompgCSV = read.csv(file_path, header=TRUE)
 ```
 
-```{R}
+```{r}
 head(autompgCSV)
 ```
 
 Let's clean this dataset a bit. Note that *horsepower* seems to be a *character* variable in the dataframe. That can't be right, let's see what is going on:
 
-```{R}
+```{r}
 sort(unique(autompgCSV$horsepower))
 ```
 
 It looks like a question mark has been added to represent missing values which is causing all values of *horsepower* to be seen as strings instead of numbers. In this case, we can fix this problem by using the **as.numeric** function and then dealing with the missing values. When you apply the **as.numeric** function to a string vector, it'll try to convert all strings to numbers and, when a number is not returned, it will intrduce **NA**s by coercion. **NA** means not available.
 
-```{R}
+```{r}
 as.numeric(sort(unique(autompgCSV$horsepower)))
 ```
 
-```{R}
+```{r}
 autompgCSV$horsepower = as.numeric(autompgCSV$horsepower)
 head(autompgCSV)
 ```
@@ -109,7 +109,7 @@ Packages such as **magrittr**, **dplyr**, **tidyr**, and **purrr** will open the
 
 **Note:** you don't have to use pipes if you don't like them but you will often find them in data science tutorials, libraries, etc. so it is good to be aware of how they work.
 
-```{R}
+```{r}
 library(dplyr) # https://dplyr.tidyverse.org/index.html
 autompg = autompgCSV %>% mutate(horsepower = as.numeric(horsepower))
 head(autompg)
@@ -117,7 +117,7 @@ head(autompg)
 
 We also want to remove the rows with incomplete data from this dataset, let's see how we can identify them. Uncomment the examples in each method to see that the output for each method is the same:
 
-```{R}
+```{r}
 # Method 1 - using complete.cases and pipes
 autompg %>% filter(!complete.cases(.))
 
@@ -127,7 +127,7 @@ autompg %>% filter(!complete.cases(.))
 
 There are a number of ways of removing the rows with NAs, here are a few:
 
-```{R}
+```{r}
 #Method 1 - using complete.cases and pipes
 #autompg %>% filter(complete.cases(.))
 
@@ -143,12 +143,12 @@ autompg %>% na.omit
 
 Let's save one of these to the dataframe **autompgclean**. We will also remove the **name** column from our dataset.
 
-```{R}
+```{r}
 autompgclean = autompg %>% na.omit %>% select(-name)
 head(autompgclean)
 ```
 
-```{R}
+```{r}
 library("ggplot2")
 library("GGally")
 ggpairs(autompgclean)+theme_bw()
@@ -159,19 +159,19 @@ ggpairs(autompgclean)+theme_bw()
 
 Say we want to model *mpg* (miles per gallon) using the predictors *horsepower*, *displacement*, *weight* and *acceleration*. If we are using least squares, we use the **lm** function:
 
-```{R}
+```{r}
 ols_model = lm(mpg ~ horsepower + displacement + weight + acceleration, data=autompgclean)
 summary(ols_model)
 ```
 
 To fit a Ridge regression using **caret** and **glmnet** and try to find the best value of *lambda*, we use the process from Workshop 4:
 
-```{R}
+```{r}
 library(caret)
 library(glmnet)
 ```
 
-```{R}
+```{r}
 lambdas=10^seq(-3,3,by=0.1)
 ctrl_kfold = trainControl(method = "cv", number = 10)
 ridge_kfold = train(mpg ~ horsepower + displacement + weight + acceleration,
@@ -185,17 +185,17 @@ ridge_kfold = train(mpg ~ horsepower + displacement + weight + acceleration,
 print(ridge_kfold$finalModel$lambdaOpt)
 ```
 
-```{R}
+```{r}
 coef(ridge_kfold$finalModel, ridge_kfold$bestTune$lambda)
 ```
 
-```{R}
+```{r}
 head(ridge_kfold$results)
 ```
 
 Let's use **ggplot** to recreate the plot we generated in the previous workshop when using **cv.glmnet**. **GGplot** uses an additive language to build plots. You can save them to variables in your workspace and keep modifying them until you land on a plot that shows what you need:
 
-```{R}
+```{r}
 cv_ridgeplot = ggplot(ridge_kfold$results) + #choose the dataset that contains the variables we want to use
   geom_point(aes(x = lambda, y = RMSE), color = "red") + #plot the RMSE for each lambda in red
   scale_x_log10(labels = function(x) format(x, scientific = FALSE)) + #change the x-axis label to log scale and remove scientific notation
@@ -209,7 +209,7 @@ R has a large number of colour names built-in and you can always create your own
 
 Now let's add the "best" value of lambda to the plot:
 
-```{R}
+```{r}
 Ridge_lambda = ridge_kfold$bestTune$lambda
 RMSE_Ridge = ridge_kfold$results %>% filter(lambda == Ridge_lambda)
 RMSE_Ridge
@@ -226,7 +226,7 @@ cv_ridgeplot +
 
 Now let's set *alpha* to 1 and see what the LASSO regression results look like:
 
-```{R}
+```{r}
 lambdas=seq(0.01,2,by=0.01)
 ctrl_kfold = trainControl(method = "cv", number = 10)
 lasso_kfold = train(mpg ~ horsepower + displacement + weight + acceleration,
@@ -240,7 +240,7 @@ lasso_kfold = train(mpg ~ horsepower + displacement + weight + acceleration,
 print(lasso_kfold$finalModel$lambdaOpt)
 ```
 
-```{R}
+```{r}
 coef(lasso_kfold$finalModel, lasso_kfold$bestTune$lambda)
 ```
 
@@ -248,7 +248,7 @@ coef(lasso_kfold$finalModel, lasso_kfold$bestTune$lambda)
 
 <!--# The acceleration has no doantion. -->
 
-```{R}
+```{r}
 cv_lassoplot = ggplot(lasso_kfold$results) + #choose the dataset that contains the variables we want to use
   geom_point(aes(x = lambda, y = RMSE), color = "red") + #plot the RMSE for each lambda in red
   #scale_x_log10(labels = function(x) format(x, scientific = FALSE)) + #change the x-axis label to log scale and remove scientific notation
@@ -258,7 +258,7 @@ cv_lassoplot = ggplot(lasso_kfold$results) + #choose the dataset that contains t
 cv_lassoplot
 ```
 
-```{R}
+```{r}
 lasso_lambda = lasso_kfold$bestTune$lambda
 RMSE_lasso = lasso_kfold$results %>% filter(lambda == lasso_lambda)
 RMSE_lasso
@@ -277,7 +277,7 @@ The LASSO model selected by **caret** with the lowest RMSE only has 3 variables 
 
 **Exercise:** Apply best subset selection, forward selection, and backward selection to the linear model introduced at the beginning. Which features were selected using each method?
 
-```{R}
+```{r}
 # ---------------------------------------------------------------------
 # Best Subset Selection methods
 library(leaps)
@@ -291,6 +291,6 @@ Can you think of a good way to present and explain your results?
 
 *Note:* Choose an appropriately coarse grid of parameters to test your code before deploying a finer grid using *expand.grid*.
 
-```{R}
+```{r}
 
 ```

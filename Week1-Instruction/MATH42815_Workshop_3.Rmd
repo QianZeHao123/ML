@@ -64,7 +64,7 @@ cat("\014")
 # ---------------------------------------------------------------------
 ```
 
-```{R}
+```{r}
 library(MASS)
 data(Boston)
 dim(Boston)
@@ -77,18 +77,18 @@ the minus sign in front of our index vector. That means we want to
 select the complementary set of observations to the one we have chosen
 for the training set.
 
-```{R}
+```{r}
 training_size = 150
 ind = sample(1:nrow(Boston), size = training_size)
-training = Boston[ind,]
-testing = Boston[-ind,]
+training = Boston[ind, ]
+testing = Boston[-ind, ]
 ```
 
 Let's start with a simple linear regression model setting *medv* as our
 response variable and the following variables as predictors: *rm*,
 *lstat*, *indus*, *ptratio*.
 
-```{R}
+```{r}
 model_1 = lm(medv ~ rm+lstat+indus+ptratio, data = training)
 summary(model_1)
 ```
@@ -96,7 +96,7 @@ summary(model_1)
 We then use the predict function on our testing dataset and calculate
 the mean squared error of our predictions.
 
-```{R}
+```{r}
 pred = predict(model_1, newdata = testing)
 summary(pred)
 mean((testing$medv - pred)^2)
@@ -107,7 +107,7 @@ output of *predict*. We add a red diagonal line to the plot to see how
 far the predicted values are from the real values in the testing
 dataset.
 
-```{R}
+```{r}
 plot(testing$medv, pred, pch = 4)
 abline(c(0,1), col = "red", lwd = 2)
 ```
@@ -115,7 +115,7 @@ abline(c(0,1), col = "red", lwd = 2)
 Let's repeat this process a few times to get an idea of how much the MSE
 changes.
 
-```{R}
+```{r}
 t_size = 150
 reps = 1000
 mse_vec = rep(NA, 100)
@@ -261,7 +261,7 @@ extension of the previous algorithms but you'll have to think about how
 to best split the dataset in chunks. Move to the next section and come
 back to this Exercise later as practice.
 
-```{R}
+```{r}
 k = 5
 repeat = 20
 ```
@@ -280,11 +280,11 @@ Let's implement the LOOCV (leave-one-out cross-validation) method using
 caret. We start by loading the library and using the **trainControl**
 function to set the method we want to use for cross-validation.
 
-```{R}
+```{r}
 library(caret)
 ```
 
-```{R}
+```{r}
 ctrl = trainControl(method = "LOOCV")
 ```
 
@@ -296,20 +296,20 @@ The function **train** takes as input the model we want to fit, the
 dataset we want to use, the method we want to use to fit this model
 (e.g. linear model), and the chosen validation method as follows:
 
-```{R}
+```{r}
 model = train(medv ~ rm+lstat+indus+ptratio,
               data = Boston,
               method = "lm",
               trControl = ctrl)
 ```
 
-```{R}
+```{r}
 print(model)
 ```
 
 And the square of the RMSE above equals
 
-```{R}
+```{r}
 print((model$results$RMSE)^2)
 ```
 
@@ -321,7 +321,7 @@ call to the **trainControl** function. We will set - the method to
 **cv** (cv stands for cross-validation), and - the number to the $k$ we
 want to use, say 10 for a 10-fold CV.
 
-```{R}
+```{r}
 ctrl_kfold = trainControl(method = "cv", number = 10)
 model_kfold = train(medv ~ rm+lstat+indus+ptratio,
               data = Boston,
@@ -332,6 +332,6 @@ print(model_kfold)
 
 **Question:** Why are the sample sizes in the summary above different?
 
-```{R}
+```{r}
 
 ```

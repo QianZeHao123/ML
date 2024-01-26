@@ -164,6 +164,7 @@ A regression tree returns the same value for all points that fall in the same te
 Before we add the random to random forests, let's use the Bagging process introduced earlier to bag a set of trees. We are going to create $n_{sample}$ trees trained with bootstrapped samples from a training dataset and save them to a list. We will use the out of bag samples to produce an estimate of the RMSE. We will then apply each model to the testing dataset and retrieve the predictions for each model and plot them:
 
 ```{r}
+set.seed(42)
 n_sample = 500
 b_sample_size = 400
 greta = list()
@@ -343,5 +344,23 @@ confusionMatrix(pred, factor(test_houses$city))
 **Exercise:** Up to this point, we have asked to try to tune your random forests by hand. Now try to build a tuning procedure using **randomForest** and **caret**. You might need to do some research on how those two packages can work together. You should also try to add cross-validation to your tuned model.
 
 ```{r}
-
+library(randomForest)
+# ----------------------------------------------------------------------
+# Define set for training and testing
+set.seed(42)
+ind = sample(1:nrow(houses), size = 50)
+test_houses = houses[ind, ]
+train_houses = houses[-ind,]
+# ----------------------------------------------------------------------
+rf = randomForest(price ~ ., data = train_houses, mtry = 5)
+# ----------------------------------------------------------------------
+# caret  for training
+fitControl = trainControl(method = "cv", number = 10)
+BagTrees = train(
+  price ~ sqft,
+  data = train_houses,
+  method = "treebag",
+  nbagg = 500,
+  trControl = fitControl
+)
 ```

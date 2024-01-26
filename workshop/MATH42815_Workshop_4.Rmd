@@ -295,3 +295,7 @@ coef(ridge_kfold$finalModel, ridge_kfold$bestTune$lambda)
 prediction_ridge = predict(ridge_kfold,mtcars[,c("mpg","drat","wt")])
 RMSE(prediction_ridge,mtcars$hp)
 ```
+
+```{r}
+plot(cv_fit)
+```

@@ -111,6 +111,51 @@ points(adjr2_max,
        lwd = 2) #make the cross lines thicker
 ```
 
-```{R}
+```{r}
+lambdas = 10 ^ seq(-6, 6, by = 0.1)
+cv_fit = cv.glmnet(
+  as.matrix(HouseData[, !names(HouseData) %in% c("price")]),
+  as.matrix(HouseData$price),
+  alpha = 1,
+  lambda = lambdas,
+  # nfolds = 20,
+  thresh=1e-10
+)
+plot(cv_fit)
+```
 
+$$
+p(y|\vec x)=N(y;\hat y(\vec x),\sigma ^2)=\frac{1}{\sqrt {2 \pi \sigma}}e^{-\frac{1}{2}\frac{(y^{(i)}-\hat y)^2}{\sigma^2}}
+$$
+
+```{r}
+# Sample data
+X = c(1.890244, 3.194744, 2.645156, 1.773481, 2.872592, 2.247813, 2.624901, 2.813008, 2.296636, 2.183676)
+
+# Function to calculate the sum of log p-values
+log_likelihood_sum = function(sample, mu, sigma) {
+  z_scores = abs(sample - mu) / sigma
+  p_values = 2 * pnorm(z_scores, lower.tail = FALSE)
+  log_p_values = log(p_values)
+  sum(log_p_values)
+}
+
+# Estimate sample mean and standard deviation
+mu_estimate = mean(X)
+sigma_estimate = sd(X)
+
+# Calculate the log likelihood sum for the estimated mu and sigma
+log_likelihood = log_likelihood_sum(X, mu_estimate, sigma_estimate)
+print(paste("Estimated mu:", mu_estimate))
+print(paste("Estimated sigma:", sigma_estimate))
+print(paste("Log likelihood sum:", log_likelihood))
+
+# Create a scatter plot
+plot(
+  X,
+  main = "Scatter Plot of X",
+  xlab = "Index",
+  ylab = "Value",
+  pch = 19
+)
 ```

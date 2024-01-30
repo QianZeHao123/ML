@@ -490,13 +490,14 @@ If you got to this point and are curious, you can start checking how **torch** w
 
 ```{r}
 library(torch)
+
 # Assuming you have data frames 'train_df' and 'test_df'
-train_tensor <- tensor(as.matrix(train_df), dtype = torch_float32())
-test_tensor <- tensor(as.matrix(test_df), dtype = torch_float32())
+train_tensor <- torch_tensor(as.matrix(training), dtype = torch_float32())
+test_tensor <- torch_tensor(as.matrix(testing), dtype = torch_float32())
 
 # Create datasets and dataloaders
-train_dataset <- tensor_dataset(train_tensor)
-test_dataset <- tensor_dataset(test_tensor)
+# train_dataset <- tensor_dataset(train_tensor)
+# test_dataset <- tensor_dataset(test_tensor)
 
 # train_dataloader <- dataloader(train_dataset, batch_size = 64, shuffle = TRUE)
 # test_dataloader <- dataloader(test_dataset, batch_size = 64)

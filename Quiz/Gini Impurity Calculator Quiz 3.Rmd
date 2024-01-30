@@ -1,0 +1,129 @@
+---
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+## Gini Impurity Calculator - Quiz 3
+
+This is the companion notebook for MATH42815 Machine Learning Quiz 3. We
+will use a small dataset with three variables. *X1* and *X2* are
+continuous features, and *X3* is a binary response variable taking
+values 1 or 2.
+
+```{r}
+# ---------------------------------------------------------------------
+# clear the environment var area
+rm(list = ls())
+# clear all plots
+graphics.off()
+# clear the console area
+cat("\014")
+# ---------------------------------------------------------------------
+```
+
+```{r}
+## Define the data we're using
+gini_data = data.frame(
+    X1 = c(0.135688569163904, 0.648322847206146, 0.922214232617989, 0.951245080679655,
+           0.206160640576854, 0.335889276582748, 0.529396213358268, 0.668579671066254,
+           0.21338652796112, 0.073560269549489, 0.995752517832443, 0.175867896992713,
+           0.241640011314303, 0.506603463552892, 0.719284313032404, 0.563963615568355,
+           0.991943622706458, 0.99151489068754, 0.604511487996206, 0.78610852221027),
+    X2 = c(0.337503112154081, 0.190078672720119, 0.329314273549244, 0.100072123110294,
+           0.579054382629693, 0.30152944708243, 0.596130579710007, 0.36300328024663,
+           0.747552181128412, 0.0690255162771791, 0.762068871408701, 0.780417416244745,
+           0.964543060166761, 0.0722105156164616, 0.375545557588339, 0.671495763584971,
+           0.64997500507161, 0.714535766281188, 0.968435753136873, 0.534191880607978),
+    X3 = c(1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 2, 2, 2, 2, 2)
+)
+```
+
+Suppose we want to find a **split point** in one of the continuous
+features and calculate the Gini Impurity related to the split.
+
+We need to choose: - one of the features (*X1* or *X2*), let's call it
+$V$, and - a slice point $c$ that splits the range of $V$ into two
+sections.
+
+Once you slice $V$ at the point $c$, there will be $n_L$ points to the
+left of $c$ and $n_R$ points to the right of $c$.
+
+Say we choose $c=0.4$ and feature *X1* in the dataset above.
+
+-   There are 7 values of *X1* lower than 0.4 so $n_L=7$. For these 7
+    points, the value of *X3* is 1.
+-   There are 13 values of *X1* greater or equal than 0.4 so $n_R=13$.
+    For those 13 points, there are 6 cases where *X3* equals 1 and 7
+    cases where *X3* equals 2.
+
+The probability of belonging to the group where *X3=1* when $X1<0.4$ can
+be estimated to be 1, and the probability of *X3=2* is 0. So the Gini
+Impurity for $X1<0.4$ is $G_L=0$.
+
+For the second split ($X1\geq0.4$), the probability of *X3=1* is 6/13,
+and probability of *X3=2* is 7/13. So the Gini Impurity for $X1\geq 0.4$
+is $G_R = (6/13\times 7/13) + (7/13\times 6/13) = 84/169 \approx 0.497$.
+
+But we need the overall Gini Impurity, not for individual groups. The
+overall Gini Impurity is then calculated as:
+
+$$I_G = \frac{n_L}{n}G_L + \frac{n_R}{n}G_R = \frac{7}{20}\times 0 + \frac{13}{20}\times \frac{84}{169} = 0.323$$
+
+In general terms, say we have a binary response (category) variable $z$,
+a feature variable $x$, and a slice point $c$ that splits the range of
+$x$ into two sections. Given data $x_1, x_2, \dots, x_n$, the Gini
+impurity is calculated as
+
+$$I_G = \frac{2}{n}\left(n_L P[Z=1|X<c]P[Z\neq1|X< c] + n_R P[Z=1|X\ge c]P[Z\neq 1|X\ge c]\right)$$
+
+where $n_L$ is the number of data samples for which $x_i < c$ and $n_R$
+is the number of samples for which $x_i\ge c$.
+
+Note that $P[Z=1|X<c]$ is the probability of $Z=1$ restricted (or
+conditional) to the cases where $X<c$, and
+$P[Z\neq 1|X<c] = 1-P[Z=1|X<c]$.
+
+```{r}
+## Define a function to calculate the gini impurity
+# The function takes a dataset, binary response variable (category), feature variable, and a split location (slice)
+# and returns the impurity. The details are not important!
+gini_impurity = function(data = gini_data,
+                         category = "X3",
+                         feature,
+                         slice) {
+  2 / nrow(data) * (
+    sum(data[, feature] < slice) * mean(data[data[, feature] < slice, category] == 1) * mean(data[data[, feature] <
+                                                                                                    slice, category] != 1) +
+      sum(data[, feature] >= slice) * mean(data[data[feature] >= slice, category] == 1) * mean(data[data[, feature] >= slice, category] != 1)
+  )
+}
+```
+
+Let's try to use this function to make sure we're happy with the syntax
+and that it works. Let's consider category `X3`, feature `X1`, and split
+$0.4$ as above. By inspection, seven rows $\{1,5,6,9,10,12,13\}$ satisfy
+`X1` $< 0.4$ with corresponding category values $\{1,1,1,1,1,1,1\}$; the
+remaining $13$ rows have category values
+$\{1,1,1,2,1,2,1,1,2,2,2,2,2\}$. So we have $n_1=7$, $n_2=13$, and
+$$P[Z=1|X<0.4]=1,$$ $$P[Z\neq1|X<0.4]=0,$$
+$$P[Z=1|X\ge0.4]=\frac{6}{13},$$ $$P[Z\neq1|X\ge 0.4]=\frac{7}{13},$$
+and thus
+$$I_G = \frac{2}{20}\left(7\times1\times0 + 13\times\frac{6}{13}\times\frac{7}{13}\right) = \frac{2\times42}{13\times20} = \frac{42}{130} \approx 0.323.$$
+Let's check!
+
+```{r}
+gini_impurity(data = gini_data, category = "X3", feature = "X1", slice = 0.4)
+```
+
+Check with a few other values: you should find (in each case the
+category variable is `X3`): - Feature variable `X1`, slice point $0.75$:
+$I_G = 0.369$ - Feature variable `X2`, slice point $0.1$:
+$I_G = 0.428$ - Feature variable `X2`, slice point $1/\pi$:
+$I_G = 0.373$
+
+```{r}
+gini_impurity(gini_data, "X3", "X1", 0.75)
+gini_impurity(gini_data, "X3", "X2", 0.1)
+gini_impurity(gini_data, "X3", "X2", 1/pi)
+```

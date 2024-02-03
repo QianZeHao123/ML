@@ -1,0 +1,310 @@
+#### MATH42815 - Machine Learning - 2023/24
+
+## Machine Learning - Workshop 11
+
+**Aim**: Introduce the Torch library
+
+#### A Long-expected Party
+
+Torch is an open source machine learning framework based on PyTorch. We will use to build neural networks for classification and regression-type problems. The framework extends to include modules for image, text, and sound processing. Check their website at <https://torch.mlverse.org/> .
+
+Ultimately images, texts, and sounds are just matrices of data so learning how to fit a neural network (or any other model) to a dataframe should give you the basic blocks to expand to other data types later in your degree.
+
+```{r}
+# ---------------------------------------------------------------------
+# clear the environment var area
+rm(list = ls())
+# clear all plots
+graphics.off()
+# clear the console area
+cat("\014")
+```
+
+```{r}
+library(torch)
+```
+
+#### The Shadow of the Past
+
+<https://download.pytorch.org/libtorch/cpu/libtorch-win-shared-with-deps-2.0.1%2Bcpu.zip>
+
+<https://storage.googleapis.com/torch-lantern-builds/binaries/refs/heads/cran/v0.12.0/latest/lantern-0.12.0+cpu-win64.zip>
+
+First we are going to build a very simple neural network to split the "circuit8" dataset we simulated in Workshop 10. You probably tried to tune your neural net to split it but didn't find a perfect cut. This is a linearly separable dataset so you should be able to cut it (eventually!).
+
+Let's first recreate the dataset:
+
+```{r}
+circuit8 = as.data.frame(expand.grid(0:1, 0:1, 0:1, 0:1, 0:1, 0:1, 0:1, 0:1))
+TF = (circuit8 == 1)
+circ_out = as.numeric(((TF[,1] & TF[,2]) | ((TF[,3] | TF[,4]))) & ((TF[,5] & TF[,6]) & (TF[,7] | TF[,8])))
+circuit8$out = circ_out
+head(circuit8)
+```
+
+Torch uses **tensors** as objects. Tensors are multidimensional arrays. Matrices are 2-dimensional special cases of tensors.
+
+Let's convert our training and target datasets to tensors:
+
+```{r}
+torch_train = torch_tensor(    #use torch_tensor to convert your data
+    as.matrix(circuit8[,1:8]), #take the first 8 columns containing the features we will use for training
+                               #and convert the data frame to a matrix using as.matrix
+    dtype = torch_float())     #choose the type of data in your matrix, it is almost always a float
+
+torch_target = torch_tensor(
+    as.numeric(circuit8[,9]),  #take the last column with the target response values and ensure they are numeric
+    dtype = torch_float())
+```
+
+Choose your loss function, here we are going to use **the binary cross-entropy loss** or **log loss** (logistic in disguise). For two vectors $y = (y_1, y_2, \ldots, y_n)$ and $y_{pred} = (\hat{y}_1, \hat{y}_2, \ldots, \hat{y}_n)$ with values taken from $(0,1)\times[0,1]$ the cross-entropy between $y$ and $y_{pred}$ is given by:
+
+$$
+H(y,y_{pred}) = -\frac{1}{n}\sum_{i=1}^n\left[y_i\log(\hat{y}_i)+(1-y_i)\log(1-\hat{y}_i)\right].
+$$
+
+```{r}
+criterion = nn_bce_loss() #binary cross-entropy (bce)
+```
+
+Design your neural network and save it to a "model". Here we will take our 8 features and linearize them as we did with our previous neurons (dot product with weights), then activate it with a sigmoid. To do that we write:
+
+```{r}
+set.seed(42)
+model = nn_sequential(nn_linear(8, 1),
+                      nn_sigmoid())
+```
+
+We then choose our optimizer, set the learning rate, number of epochs, and go listen to a lord of the rings podcast:
+
+```{r}
+optimizer = optim_adam(model$parameters, lr = 0.01) #gradient descent on steroids with a learning rate of 0.01
+
+epochs = 2000 #many epochs
+
+for (i in 1:epochs) {
+  optimizer$zero_grad()  #we don't want the gradients to be accummulated but reset in each epoch, there'll be cases where this will be needed
+  y_pred = model(torch_train) #fit the current model, return predicted values
+  loss = criterion(y_pred, torch_target) #calculate loss
+  loss$backward() #backward propagate your losses
+  optimizer$step()    #next step
+  
+  if (i %% 100 == 0) {  #some verbose to keep track of how well your neural net is being trained
+    corrects <- (as.numeric(y_pred > 0.5) == torch_target)
+    accuracy <- corrects$sum()$item()/torch_target$size()
+    cat("Epoch:", i, "Loss:", loss$item(), "Accuracy:", accuracy, "\n")
+  }
+}
+```
+
+Let's bring back our monitoring function we used last week to check how well our model has classified the training data:
+
+```{r}
+quality_measures = function(pred, actual) {
+  confusion = table(pred, actual)
+  accuracy = sum(diag(confusion)) / sum(confusion) #accuracy - proportion of correctly classified
+  prec = confusion[2, 2] / sum(confusion[, 2]) # precision - positive predictive value
+  sens = confusion[2, 2] / sum(confusion[2, ]) # sensitivity - true positive rate
+  spec = confusion[1, 1] / sum(confusion[1, ]) # specificity - true negative rate
+  fscore = 2 * (sens * prec) / (sens + prec) #F-score - measure of predictive performance
+  print(c("Precision: ", prec))
+  print(c("Sensitivity: ", sens))
+  print(c("Specificity: ", spec))
+  print(c("F Score: ", fscore))
+  print(c("Accuracy: ", accuracy))
+  print(confusion)
+}
+```
+
+```{r}
+pred_values = as.numeric(model(torch_train) > 0.5)
+quality_measures(pred_values, as.numeric(torch_target))
+```
+
+#### Three is Company
+
+Let's try adding another layer to this network. We have 8 features and 1 output variable. Almost every problem can be addressed with 3 layers (input, output and one hidden layer). If your data is linearly separable like circuit8, you should not need any hidden layers but it doesn't mean it is an easy problem to solve (or one you should be solving with a neural network).
+
+The number of neurons in your input and output layers are always known as they are defined by the shape of your data and the type of problem you are solving.
+
+-   The number of neurons in your input layer is equal to the number of features in your data.
+-   The number of neurons in your output layer is almost always one.
+-   If you are fitting a regression-type model with one response variable, then you have one neuron. If you have multiple response variables, then you have as many neurons as response variables.
+-   If you are fitting a classification-type model then you either have one neuron that returns class labels or $n$ neurons where $n$ is the number of classes in your model with estimated probabilities for each class.
+-   The number of neurons in your hidden layer(s) should be between the number of neurons in your input and output layer.
+
+Adding more neurons and layers is likely to lead to overfitting. You can always try pruning as we do with random forests but ultimately it's best to try to think through your network architecture before adding more layers.
+
+Let's introduce a linear hidden layer to our model:
+
+```{r}
+set.seed(42)
+model_3layer = nn_sequential(
+    #Input layer
+    nn_linear(8,4), # we choose to have 4 neurons in our hidden layer so the input layer needs to return 4 outputs
+    #Hidden layer
+    nn_linear(4,1), #4 neurons combined linearly to output one value
+    #Output layer
+    nn_sigmoid()
+)
+```
+
+```{r}
+optimizer = optim_adam(model_3layer$parameters, lr = 0.01) #gradient descent on steroids with a learning rate of 0.01
+
+epochs = 1000 #many epochs
+
+for (i in 1:epochs) {
+  optimizer$zero_grad()  # we don't want the gradients to be accummulated but reset in each epoch, there'll be cases where this will be needed
+  y_pred = model_3layer(torch_train) # fit the current model, return predicted values
+  loss = criterion(y_pred, torch_target) # calculate loss
+  loss$backward() # backward propagate your losses
+  optimizer$step()    # next step
+  
+  if (i %% 100 == 0) {  # some verbose to keep track of how well your neural net is being trained
+    corrects = (as.numeric(y_pred > 0.5) == torch_target)
+    accuracy = corrects$sum()$item()/torch_target$size()
+    cat("Epoch:", i, "Loss:", loss$item(), "Accuracy:", accuracy, "\n")
+  }
+}
+```
+
+```{r}
+pred_values = as.numeric(model_3layer(torch_train)>0.5)
+quality_measures(pred_values, as.numeric(torch_target))
+```
+
+#### A Short Cut to Mushrooms
+
+You can take a look at the weights and biases calculated for each layer as below. For the first layer, we have $8 \times k$ weights where $k$ is the number of neurons in the second layer. As you increase $k$, the size of this matrix will grow and you'll start to see weights very close to 0. The nodes next to those are the ones that would likely get pruned. You can also use this an indication to reduce the number of neurons in your hidden layer or possibly remove it. Pruning becomes relevant for very large models that are resource intensive and any saving in computing time makes a difference. It's unlikely you'll need to prune a model with small datasets like this one!
+
+```{r}
+model_3layer$parameters
+```
+
+#### A Conspiracy Unmasked
+
+We now continue on our mission to understand the differences between the housing markets in New York and San Francisco. We load our data and create a simple network with one layer. It's now for you to try to put blocks together and test different modules:
+
+```{r}
+library(dplyr)
+file = "part_1_data.csv"
+houses = read.csv(file,header=TRUE)
+head(houses)
+```
+
+We are going to use the **scales** library to rescale our data to the $(0,1)$ interval. You can still use the function we wrote in Workshop 10 if you wish:
+
+```{r}
+library(scales)
+houses$price_scale = rescale(houses$price)
+houses$elevation_scale = rescale(houses$elevation)
+houses$sqft_scale = rescale(houses$sqft)
+head(houses)
+```
+
+We set our training and testing datasets and prepare our training samples for torch:
+
+```{r}
+set.seed(2024)
+ind = sample(1:nrow(houses), 350) #about 75% for training
+training = houses[ind, ]
+testing = houses[-ind, ]
+
+train = as.matrix(training[, c("price_scale", "elevation_scale", "sqft_scale")])
+target = as.matrix(training$in_sf)
+```
+
+We are going to use a different criteria this time. The **nn_bce_with_logits_loss** module combines the binary cross-entropy loss function witha sigmoid layer. So the output layer is already built-in here. You can replace this with the process we used for the previous example to get roughly the same result (small numerical oscillations likely).
+
+We will also use the rectified linear unit activation function, ReLU:
+
+$$ReLU(x) = \max(0,x)$$
+
+The ReLU is a very cheap way of introducing non-linearity and interactions to your network. In the SF and NY case, we have a good idea that the 3 variables we are modelling have a non-linear relationship and they are likely to interact with each other so introducing an activation function that enables non-linear mixing is useful.
+
+```{r}
+criterion = nn_bce_with_logits_loss()
+tensor_train = torch_tensor(train, dtype=torch_float())
+tensor_target = torch_tensor(target, dtype=torch_float())
+```
+
+```{r}
+model_SF = nn_sequential(#Layer 1
+  nn_linear(3, 2),  #we have 3 features and we will add 2 neurons to our hidden layer
+  nn_relu(),       #the reLU or rectified linear unit function
+  #Layer 2
+  nn_linear(2, 1)   #takes the output of layer 1 and linearizes it ready for the sigmoid in the nn_bce_with_logits_loss
+  #Layer 3 - is built-in our criteria this time)
+)
+pred_temp = model_SF(tensor_train)
+```
+
+```{r}
+# Define cost and optimizer
+criterion = nn_bce_with_logits_loss()
+optimizer = optim_adam(model_SF$parameters, lr = 0.01)
+
+epochs = 2000
+
+# Train the net
+for(i in 1:epochs){
+
+    optimizer$zero_grad()
+    
+    y_pred = model_SF(tensor_train)
+    y_pred_class = (y_pred>0.5)
+    loss = criterion(y_pred, tensor_target)
+    loss$backward()
+    optimizer$step()
+    # Check Training
+    if(i %% 100 == 0){
+        corrects = (y_pred_class == tensor_target)
+        accuracy = corrects$sum()$item() / tensor_target$size(1)
+        cat(" Epoch:", i,"Loss: ", loss$item()," Accuracy:",accuracy,"\n")
+    }
+}
+```
+
+```{r}
+y_pred = as.numeric(model_SF(tensor_train)>0.5)
+quality_measures(y_pred, target)
+```
+
+This looks ok, let's see how well it performs when applied to our test samples:
+
+```{r}
+test = as.matrix(testing[,c("price_scale","elevation_scale","sqft_scale")])
+tensor_test = torch_tensor(test, dtype=torch_float())
+y_test = as.numeric(model_SF(tensor_test)>0.5)
+quality_measures(y_test, testing$in_sf)
+```
+
+#### The Old Forest
+
+And for anyone that paid attention to workshop 10 and read the Fellowship of the Ring, you should have expected our old random forest to make a come back. Your task now is to try to create a neural net with higher accuracy than the forest below:
+
+```{r}
+library(randomForest)
+set.seed(2020)
+rf = randomForest(factor(in_sf) ~ price_scale + elevation_scale + sqft_scale, data = training)
+rf
+predRF = predict(rf, newdata = testing)
+quality_measures(predRF, testing$in_sf)
+```
+
+After you have created a neural net that outperforms this random forest, you should try to fit a neural net to predict prices based on relevant features for this dataset. Again, how much better can it get when compared to a random forest?
+
+```{r}
+
+```
+
+*''Old Tom Bombadil is a merry fellow,*
+
+*Bright blue his jacket is, and his boots are yellow.*
+
+*None has ever caught him yet, for Tom, he is the Master:*
+
+*His songs are stronger songs, and his feet are faster.''*
+
+<img src="https://arthive.net/res/media/img/oy800/work/0dd/154433@2x.jpg" width="258"/>

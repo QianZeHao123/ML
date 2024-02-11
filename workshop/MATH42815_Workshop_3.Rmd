@@ -263,7 +263,7 @@ back to this Exercise later as practice.
 
 ```{r}
 k = 5
-repeat = 20
+repeat <- 20
 ```
 
 ### Using the Caret package for cross-validation

@@ -54,9 +54,9 @@ print(coef(best_forward,forward_adjr2))
 
 ```{r}
 forward_cp = which.min(forward_summary$cp)
-print(coef(best_forward,forward_cp))
+print(coef(best_forward, forward_cp))
 forward_bic = which.min(forward_summary$bic)
-print(coef(best_forward,forward_bic))
+print(coef(best_forward, forward_bic))
 ```
 
 ```{r}

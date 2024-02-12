@@ -262,6 +262,7 @@ library(glmnet)
 perform_cv_glmnet <-
   function(TrainSet, TestSet, target_var, alpha) {
     print('--------------------------------------------------')
+    start_time <- Sys.time()
     # Generate a sequence of lambda values
     lambdas <- 10 ^ seq(-3, 3, by = 0.05)
     # Prepare the data
@@ -307,7 +308,15 @@ perform_cv_glmnet <-
       RMSE_Test = RMSE_Test
     )
     print(result)
+    end_time <- Sys.time()
+    duration <- end_time - start_time
+    print(duration)
     plot(cv_fit)
+    # compare the age with the pridict age
+    Test = TestSet %>% mutate(AgePred = predictionsTest)
+    ggplot(Test) + geom_point(aes(x=Age, y=AgePred)) + geom_abline(intercept = 0,slope = 1, colour = "red")
+    
+
   }
 ```
 
@@ -353,6 +362,31 @@ perform_cv_glmnet(training.abalone_Age_SexI,
                   1)
 ```
 
+```{r}
+# compare same alpha (1) with different datase
+set.seed(2024)
+perform_cv_glmnet(training.abalone_Age_NoSex,
+                  testing.abalone_Age_NoSex,
+                  'Age',
+                  0)
+perform_cv_glmnet(training.abalone_Age_DummySex,
+                  testing.abalone_Age_DummySex,
+                  'Age',
+                  0)
+perform_cv_glmnet(training.abalone_Age_SexM,
+                  testing.abalone_Age_SexM,
+                  'Age',
+                  0)
+perform_cv_glmnet(training.abalone_Age_SexF,
+                  testing.abalone_Age_SexF,
+                  'Age',
+                  0)
+perform_cv_glmnet(training.abalone_Age_SexI,
+                  testing.abalone_Age_SexI,
+                  'Age',
+                  0)
+```
+
 ### Random Forest
 
 ```{r}
@@ -363,17 +397,6 @@ rf
 ```
 
 ```{r}
-
-```
-
-```{r}
-
-# RMSE_Train = training.abalone_Age %>% mutate(AgePred = predict(rf, newdata = training.abalone_Age))
-
-# RMSE_Test = testing.abalone_Age %>% mutate(AgePred = predict(rf, newdata = testing.abalone_Age))
-
-# RMSE(RMSE_Train$Age, RMSE_Train$AgePred)
-# RMSE(RMSE_Test$Age, RMSE_Test$AgePred)
 
 ```
 
@@ -391,12 +414,10 @@ perform_random_forest <- function(Formula, TrainSet, TestSet) {
   TestError = RMSE(Test$Age, Test$AgePred)
   result = list(rf = rf, TrainError = TrainError, TestError = TestError)
   print(result)
-  ggplot(Test) + geom_point(aes(x=Age, y=AgePred)) + geom_abline(intercept = 0,slope = 1, colour = "red")
-  # summary(rf)
-  
   end_time <- Sys.time()
   duration <- end_time - start_time
   print(duration)
+  ggplot(Test) + geom_point(aes(x=Age, y=AgePred)) + geom_abline(intercept = 0,slope = 1, colour = "red")
 }
 ```
 
@@ -404,4 +425,5 @@ perform_random_forest <- function(Formula, TrainSet, TestSet) {
 perform_random_forest(Age ~ ., training.abalone_Age, testing.abalone_Age)
 perform_random_forest(Age ~ .-Sex, training.abalone_Age, testing.abalone_Age)
 perform_random_forest(Age ~ .-Height, training.abalone_Age, testing.abalone_Age)
+perform_random_forest(Age ~ .-Height-Sex, training.abalone_Age, testing.abalone_Age)
 ```

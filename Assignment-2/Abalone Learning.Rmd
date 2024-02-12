@@ -207,6 +207,7 @@ points(adjr2_max,
 
 ```{r}
 # -------------------------------------------------------------
+# abalone_Age
 set.seed(2024)
 ind = sample(1:nrow(abalone_Age),
              size = 800,
@@ -214,6 +215,7 @@ ind = sample(1:nrow(abalone_Age),
 training.abalone_Age = abalone_Age[-ind, ]
 testing.abalone_Age = abalone_Age[ind, ]
 # -------------------------------------------------------------
+# abalone_Age_NoSex
 set.seed(2024)
 ind = sample(1:nrow(abalone_Age_NoSex),
              size = 800,
@@ -221,6 +223,15 @@ ind = sample(1:nrow(abalone_Age_NoSex),
 training.abalone_Age_NoSex = abalone_Age_NoSex[-ind, ]
 testing.abalone_Age_NoSex = abalone_Age_NoSex[ind, ]
 # -------------------------------------------------------------
+# abalone_Age_DummySex
+set.seed(2024)
+ind = sample(1:nrow(abalone_Age_DummySex),
+             size = 800,
+             replace = FALSE)
+training.abalone_Age_DummySex = abalone_Age_DummySex[-ind, ]
+testing.abalone_Age_DummySex = abalone_Age_DummySex[ind, ]
+# -------------------------------------------------------------
+# abalone_Age_SexF
 set.seed(2024)
 ind = sample(1:nrow(abalone_Age_SexF),
              size = 300,
@@ -228,6 +239,7 @@ ind = sample(1:nrow(abalone_Age_SexF),
 training.abalone_Age_SexF = abalone_Age_SexF[-ind, ]
 testing.abalone_Age_SexF = abalone_Age_SexF[ind, ]
 # -------------------------------------------------------------
+# abalone_Age_SexM
 set.seed(2024)
 ind = sample(1:nrow(abalone_Age_SexM),
              size = 300,
@@ -235,6 +247,7 @@ ind = sample(1:nrow(abalone_Age_SexM),
 training.abalone_Age_SexM = abalone_Age_SexM[-ind, ]
 testing.abalone_Age_SexM = abalone_Age_SexM[ind, ]
 # -------------------------------------------------------------
+# abalone_Age_SexI
 set.seed(2024)
 ind = sample(1:nrow(abalone_Age_SexI),
              size = 300,
@@ -320,6 +333,10 @@ perform_cv_glmnet(training.abalone_Age_NoSex,
 set.seed(2024)
 perform_cv_glmnet(training.abalone_Age_NoSex,
                   testing.abalone_Age_NoSex,
+                  'Age',
+                  1)
+perform_cv_glmnet(training.abalone_Age_DummySex,
+                  testing.abalone_Age_DummySex,
                   'Age',
                   1)
 perform_cv_glmnet(training.abalone_Age_SexM,

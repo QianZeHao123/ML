@@ -1,0 +1,203 @@
+#### MATH42815 - Machine Learning - 2023/24
+
+#### MATH42815 - Machine Learning - 2023/24
+
+## Machine Learning - Workshop 12
+
+
+This workbook contains a multi-class classification example with sample code for CART, Random Forests, and Neural Nets.
+
+#### Multi-class classification
+
+The [iris](https://en.wikipedia.org/wiki/Iris_flower_data_set) dataset contains measurements for 150 samples of irisis. There are three species (50 each) in the dataset and 4 measurements for each (Sepal Length in cm, Sepal Width in cm, Petal Length in cm, Petal Width in cm).
+
+
+```{r}
+library(ggplot2)
+library(GGally)
+data(iris)
+head(iris)
+iris_results = iris #dataframe to add columns with model results
+```
+
+
+```{r}
+ggpairs(iris, aes(color = Species)) + theme_bw()
+```
+
+
+```{r}
+library(ggparty)
+library(rpart)
+```
+
+
+```{r}
+part_species = rpart(data = iris,
+                     Species ~ .,
+                     method = "class")
+part_species
+```
+
+
+```{r}
+plot(as.party(part_species))
+```
+
+
+```{r}
+printcp(part_species)
+autoplot(as.party(part_species))
+```
+
+
+```{r}
+check_fit = predict(part_species, newdata = iris, type="class") #change type to prob to see probabilities
+#check_fit
+table(check_fit, iris$Species) #almost perfect, now split the data in training and testing before fitting and see if it still works
+```
+
+
+```{r}
+iris_results$cart = check_fit
+head(iris_results)
+```
+
+
+```{r}
+library(randomForest)
+rf_iris = randomForest(Species ~ ., data = iris)
+rf_iris
+```
+
+
+```{r}
+iris_results$rf = predict(rf_iris, newdata = iris)
+table(iris_results$rf, iris_results$Species)
+```
+
+
+```{r}
+library(torch)
+train = torch_tensor(as.matrix(iris[,-5]), dtype = torch_float())
+target = torch_tensor(as.numeric(iris[,5]), dtype = torch_long())
+
+model_iris = nn_sequential(
+
+  # Layer 1
+  nn_linear(4, 8),
+  nn_relu(), 
+
+  # Layer 2
+  nn_linear(8, 16),
+  nn_relu(),
+
+  # Layee 3
+  nn_linear(16,3),
+  nn_softmax(2)
+)
+```
+
+
+```{r}
+criterion = nn_cross_entropy_loss()  
+optimizer = optim_adam(model_iris$parameters, lr = 0.01)
+
+epochs = 200
+
+# Train the net
+for(i in 1:epochs){
+
+  optimizer$zero_grad()
+
+  y_pred = model_iris(train)
+  loss = criterion(y_pred, target)
+  loss$backward()
+  optimizer$step()
+
+
+  # Check Training
+  if(i %% 50 == 0){
+
+    winners = y_pred$argmax(dim=2)
+    corrects = (winners == target)
+    accuracy = corrects$sum()$item() / target$size()
+
+    cat(" Epoch:", i,"Loss: ", loss$item()," Accuracy:",accuracy,"\n")
+  }
+
+}
+```
+
+
+```{r}
+#levels(iris$Species)
+iris_results$nn = cut(as.numeric(model_iris(train)$argmax(dim=2)), 3, labels = levels(iris$Species))
+table(iris_results$nn, iris_results$Species)
+```
+
+
+```{r}
+iris_results$cart_right = (iris_results$cart == iris_results$Species)
+iris_results$rf_right = (iris_results$rf == iris_results$Species)
+iris_results$nn_right = (iris_results$nn == iris_results$Species)
+head(iris_results)
+```
+
+
+```{r}
+ggplot(iris_results, aes(x=Sepal.Length, y=Sepal.Width))+
+geom_point(aes(color = Species,shape = cart_right),size = 2)+
+scale_shape_manual(values=c(4, 16)) +
+theme_bw()
+ggplot(iris_results, aes(x=Sepal.Length, y=Sepal.Width))+
+geom_point(aes(color = Species,shape = rf_right),size = 2)+
+scale_shape_manual(values=c(16)) +
+theme_bw()
+ggplot(iris_results, aes(x=Sepal.Length, y=Sepal.Width))+
+geom_point(aes(color = Species,shape = nn_right),size = 2)+
+scale_shape_manual(values=c(4, 16))+
+theme_bw()
+```
+
+
+```{r}
+library(lhs)
+library(scales)
+random_iris = as.data.frame(randomLHS(1000, 4)) #creates a random sample in a hypercube with 4 variables
+names(random_iris) = names(iris)[1:4]
+random_iris$Sepal.Length = rescale(random_iris$Sepal.Length, to = range(iris$Sepal.Length))
+random_iris$Sepal.Width = rescale(random_iris$Sepal.Width, to = range(iris$Sepal.Width))
+random_iris$Petal.Length = rescale(random_iris$Petal.Length, to = range(iris$Petal.Length))
+random_iris$Petal.Width = rescale(random_iris$Petal.Width, to = range(iris$Petal.Width))
+head(random_iris)
+```
+
+
+```{r}
+random_iris$cart = predict(part_species, newdata = random_iris, type="class")
+random_iris$rf = predict(rf_iris, newdata = random_iris)
+tensor_iris = torch_tensor(as.matrix(random_iris[,1:4]), dtype=torch_float())
+random_iris$nn = cut(as.numeric(model_iris(tensor_iris)$argmax(dim=2)), 3, labels = levels(iris$Species))
+head(random_iris)
+```
+
+
+```{r}
+ggpairs(random_iris, aes(color = cart), columns = c(1:4))
+```
+
+
+```{r}
+ggpairs(random_iris, aes(color = rf), columns = c(1:4))
+```
+
+
+```{r}
+ggpairs(random_iris, aes(color = nn), columns = c(1:4))
+```
+
+
+```{r}
+
+```
